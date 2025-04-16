@@ -1,7 +1,6 @@
 # Journal AI - Your AI-powered Journaling Companion
 
 <div align="center">
-  <img src="/public/logo.png" alt="Journal AI Logo" width="200" />
   <p><em>Reflect, grow, and thrive with AI-assisted journaling</em></p>
   
   [![Next.js](https://img.shields.io/badge/Next.js-13.4+-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -22,41 +21,40 @@ With Journal AI, users can:
 
 ## 🏗️ Project Structure
 
-\`\`\`
-journal-ai/
-├── app/                    # Next.js App Router
-│   ├── dashboard/          # Dashboard page
-│   ├── history/            # Journal history page
-│   ├── journal/            # Journal entry page
-│   ├── login/              # Login page
-│   ├── register/           # Registration page
-│   ├── reminders/          # Reminders page
-│   ├── globals.css         # Global styles
-│   ├── layout.tsx          # Root layout
-│   └── page.tsx            # Home page (redirects to dashboard/login)
-├── components/             # Reusable UI components
-│   ├── chat/               # Chat-related components
-│   │   ├── chat-bubble.tsx # Chat message components
-│   │   └── time-picker.tsx # Time picker component
-│   ├── theme-provider.tsx  # Theme provider component
-│   └── ui/                 # UI components (shadcn/ui)
-├── context/                # React context providers
-│   ├── AuthContext.js      # Authentication context
-│   └── SupabaseContext.js  # Supabase client context
-├── lib/                    # Utility functions and providers
-│   ├── auth-provider.tsx   # Authentication provider
-│   ├── notification-provider.tsx # Notifications provider
-│   ├── openai.ts           # OpenAI integration
-│   ├── supabase-provider.tsx # Supabase provider
-│   ├── supabase.ts         # Supabase client
-│   └── utils.ts            # Utility functions
-├── public/                 # Static assets
-├── styles/                 # Additional styles
-├── next.config.mjs         # Next.js configuration
-├── postcss.config.mjs      # PostCSS configuration
-├── tailwind.config.ts      # Tailwind CSS configuration
-└── package.json            # Project dependencies
-\`\`\`
+The application is organized into the following key directories:
+
+### Core Directories
+| Directory | Description |
+|-----------|-------------|
+| `app/` | Next.js App Router with page components |
+| `components/` | Reusable UI components |
+| `lib/` | Utility functions and providers |
+| `public/` | Static assets |
+
+### App Directory
+| Subdirectory | Purpose |
+|--------------|---------|
+| `dashboard/` | Dashboard page |
+| `history/` | Journal history page |
+| `journal/` | Journal entry page |
+| `login/` | Login page |
+| `register/` | Registration page |
+| `reminders/` | Reminders page |
+
+### Components
+| Subdirectory | Purpose |
+|--------------|---------|
+| `chat/` | Chat-related components |
+| `ui/` | UI components (shadcn/ui) |
+
+### Library
+| File | Purpose |
+|------|---------|
+| `auth-provider.tsx` | Authentication provider |
+| `notification-provider.tsx` | Notifications provider |
+| `openai.ts` | OpenAI integration |
+| `supabase-provider.tsx` | Supabase provider |
+| `utils.ts` | Utility functions |
 
 ## 🛠️ Setup Instructions
 
@@ -65,31 +63,25 @@ journal-ai/
 - Node.js 18.x or later
 - npm or yarn
 - Supabase account (for database and authentication)
+- OpenAI API key
+- Supabase CLI (`npm install -g supabase`)
 
-### Environment Variables
-
-Create a `.env.local` file in the root directory with the following variables:
-
-\`\`\`
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-SUPABASE_JWT_SECRET=your_supabase_jwt_secret
-\`\`\`
-
-### Database Setup
+### Step 1: Supabase Setup
 
 1. Create a new Supabase project
+
 2. Set up the following tables in your Supabase database:
 
 #### journal_entries
-\`\`\`sql
+```sql
 create table journal_entries (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users not null,
   content text not null,
   processed boolean default false,
-  created_at timestamp with time zone default now()
+  created_at timestamp with time zone default now(),
+  processed_at timestamptz,
+  ai_cost numeric
 );
 
 -- Enable RLS
@@ -107,10 +99,10 @@ create policy "Users can view their own journal entries"
 create policy "Users can update their own journal entries"
   on journal_entries for update
   using (auth.uid() = user_id);
-\`\`\`
+```
 
 #### suggestions
-\`\`\`sql
+```sql
 create table suggestions (
   id uuid default uuid_generate_v4() primary key,
   entry_id uuid references journal_entries not null,
@@ -118,6 +110,13 @@ create table suggestions (
   response_text text not null,
   created_at timestamp with time zone default now()
 );
+
+-- Add index and cascading delete
+create index on suggestions(entry_id);
+alter table suggestions
+  add constraint fk_journal_entries
+  foreign key (entry_id) references journal_entries(id)
+  on delete cascade;
 
 -- Enable RLS
 alter table suggestions enable row level security;
@@ -130,10 +129,14 @@ create policy "Users can view suggestions for their entries"
 create policy "Users can create suggestions for their entries"
   on suggestions for insert
   with check (auth.uid() = (select user_id from journal_entries where id = entry_id));
-\`\`\`
+
+create policy "Users can update suggestions for their entries"
+  on suggestions for update
+  using (auth.uid() = (select user_id from journal_entries where id = entry_id));
+```
 
 #### reminders
-\`\`\`sql
+```sql
 create table reminders (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users not null,
@@ -161,10 +164,10 @@ create policy "Users can view their own reminders"
 create policy "Users can update their own reminders"
   on reminders for update
   using (auth.uid() = user_id);
-\`\`\`
+```
 
 #### profiles
-\`\`\`sql
+```sql
 create table profiles (
   id uuid references auth.users primary key,
   email text not null,
@@ -183,37 +186,143 @@ create policy "Users can view their own profile"
 create policy "Users can update their own profile"
   on profiles for update
   using (auth.uid() = id);
-\`\`\`
+```
 
-### Install Dependencies
+### Step 2: Environment and Secrets Management
 
-\`\`\`bash
+1. Set up OpenAI API key using Supabase CLI:
+
+```bash
+# Login to Supabase
+supabase login
+
+# Set your OpenAI API key securely (never store in Git)
+supabase secrets set OPENAI_API_KEY="your_openai_key_here"
+```
+
+2. Create a local development environment file:
+
+```bash
+# Create a local secrets file for development
+cp supabase/.env.local.example supabase/.env.local
+echo "OPENAI_API_KEY=your_key" >> supabase/.env.local
+```
+
+3. Create a `.env.local` file in the project root with these variables:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_FUNCTIONS_URL=https://<project-ref>.functions.supabase.co
+```
+
+### Step 3: Edge Function Deployment
+
+1. Prepare your edge function:
+
+```
+supabase/
+├── functions/
+│   ├── _shared/           # Shared utilities
+│   │   ├── supabase.ts    # Supabase client
+│   │   └── openai.ts      # OpenAI client
+│   └── analyze-journal/
+│       └── index.ts       # Main function
+```
+
+2. Deploy the edge function:
+
+```bash
+# For local development with live environment
+supabase functions serve --env-file ./supabase/.env.local
+
+# For production deployment
+supabase functions deploy analyze-journal
+```
+
+4. Verify the function is deployed by checking the Functions tab in your Supabase dashboard.
+
+### Step 4: Next.js Integration
+
+1. Type-safe Supabase client in `lib/supabase.ts`:
+
+```typescript
+import { createClient } from "@supabase/supabase-js";
+
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+```
+
+2. Add server actions for edge functions (Next.js 13+):
+
+```typescript
+// app/actions.ts
+"use server";
+
+export async function analyzeJournal(entryId: string) {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FUNCTIONS_URL}/analyze-journal`,
+      { 
+        method: "POST", 
+        body: JSON.stringify({ entry_id: entryId }),
+        headers: { "Content-Type": "application/json" } 
+      }
+    );
+    
+    // Basic retry logic for OpenAI rate limits
+    if (res.status === 429) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return analyzeJournal(entryId);
+    }
+    
+    return await res.json();
+  } catch (error) {
+    console.error("Error calling analyze-journal:", error);
+    throw error;
+  }
+}
+```
+
+### Step 5: Install Dependencies
+
+```bash
 npm install
 # or
 yarn install
-\`\`\`
+```
 
 ## 🚀 How to Run
 
 ### Development Mode
 
-\`\`\`bash
+Start the development server:
+
+```bash
 npm run dev
 # or
 yarn dev
-\`\`\`
+```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+Then open [http://localhost:3000](http://localhost:3000) in your browser to access the application.
 
 ### Production Build
 
-\`\`\`bash
+Build and run the production version:
+
+```bash
+# Build the application
 npm run build
-npm start
 # or
 yarn build
+
+# Start the production server
+npm start
+# or
 yarn start
-\`\`\`
+```
 
 ## ✨ Features
 
@@ -304,7 +413,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgements
 
@@ -314,8 +423,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Lucide Icons](https://lucide.dev/)
 
+
+<br>
+<br>
+
 ---
 
-<div align="center">
-  <p>Made with ❤️ by Saymon Araújo</p>
+Made by Saymon Araújo
+<div>
+ <p> Feel free to get in touch, it will be a pleasure to chat.</p>
+  <a href="https://www.linkedin.com/in/saymon-araujo/" target="_blank"><img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" target="_blank"></a>
+  <a href="mailto:saymonbrandon@gmail.com?subject=Hello%20Saymon,%20From%20Github"><img src="https://img.shields.io/badge/gmail-%23D14836.svg?&style=for-the-badge&logo=gmail&logoColor=white" /></a>
+  <a href="https://t.me/saymon_araujo_dev"><img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" /></a>&nbsp;&nbsp;&nbsp;&nbsp;
 </div>
