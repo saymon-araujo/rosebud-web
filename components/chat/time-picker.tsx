@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Clock } from "lucide-react"
 
 type TimePickerProps = {
   open: boolean
@@ -48,7 +49,10 @@ export default function TimePicker({ open, onClose, onSelectTime, initialTime = 
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Select Time</DialogTitle>
+          <DialogTitle className="flex items-center">
+            <Clock className="h-5 w-5 mr-2 text-primary" />
+            Select Reminder Time
+          </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -70,6 +74,9 @@ export default function TimePicker({ open, onClose, onSelectTime, initialTime = 
               }}
             />
           </div>
+          <p className="text-sm text-gray-500 col-span-4 text-center">
+            {selectedTime ? `Reminder will be set for ${selectedTime}` : "Please select a time"}
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

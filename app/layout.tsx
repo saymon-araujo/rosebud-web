@@ -1,3 +1,4 @@
+import './globals.css'
 import type React from "react"
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
@@ -5,14 +6,13 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { SupabaseProvider } from "@/lib/supabase-provider"
 import { AuthProvider } from "@/lib/auth-provider"
 import { NotificationProvider } from "@/lib/notification-provider"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "Journal AI - Your AI-powered journaling companion",
   description: "An AI-powered journaling app that helps you reflect and grow",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <NotificationProvider>
                 {children}
-                <Toaster />
+                <Toaster position="top-right" closeButton richColors />
               </NotificationProvider>
             </AuthProvider>
           </SupabaseProvider>
@@ -35,4 +35,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 
 
-import './globals.css'

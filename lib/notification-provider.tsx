@@ -10,6 +10,7 @@ type NotificationContextType = {
   requestPermissions: () => Promise<boolean>
   scheduleNotification: (title: string, body: string, time: Date, reminderId: string) => Promise<string>
   cancelNotification: (notificationId: string) => Promise<void>
+  testNotificationPermission: () => Promise<boolean>
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -19,15 +20,52 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const { toast } = useToast()
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null)
 
+  // Debug notification permission on page load
   useEffect(() => {
-    // Check if notifications are supported
+    console.log("NotificationProvider mounted");
+    console.log("Notification in window:", "Notification" in window);
     if ("Notification" in window) {
-      setNotificationPermission(Notification.permission)
+      console.log("Initial notification permission:", Notification.permission);
+      setNotificationPermission(Notification.permission);
     }
-  }, [])
+  }, []);
+
+  // Add a test notification function for debugging
+  const testNotificationPermission = async () => {
+    console.log("Testing notification permission");
+
+    if (!("Notification" in window)) {
+      console.error("Notifications not supported");
+      return false;
+    }
+
+    try {
+      console.log("Current permission:", Notification.permission);
+
+      // Force a permission request
+      const result = await Notification.requestPermission();
+      console.log("Permission request result:", result);
+
+      // Try to show a test notification if granted
+      if (result === "granted") {
+        new Notification("Test Notification", {
+          body: "This is a test notification",
+        });
+      }
+
+      return result === "granted";
+    } catch (error) {
+      console.error("Error requesting permission:", error);
+      return false;
+    }
+  };
 
   const requestPermissions = async (): Promise<boolean> => {
+    console.log("Request permissions called");
+    console.log("Current notification permission:", Notification.permission);
+
     if (!("Notification" in window)) {
+      console.log("Notifications not supported by this browser");
       toast({
         title: "Notifications not supported",
         description: "Your browser doesn't support notifications",
@@ -37,15 +75,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     if (Notification.permission === "granted") {
+      console.log("Permissions already granted");
       return true
     }
 
     if (Notification.permission !== "denied") {
-      const permission = await Notification.requestPermission()
-      setNotificationPermission(permission)
-      return permission === "granted"
+      console.log("Requesting notification permission from browser...");
+      try {
+        const permission = await Notification.requestPermission()
+        console.log("Permission result:", permission);
+        setNotificationPermission(permission)
+        return permission === "granted"
+      } catch (error) {
+        console.error("Error requesting notification permission:", error);
+        return false;
+      }
     }
 
+    console.log("Permissions were previously denied");
     toast({
       title: "Permission required",
       description: "Please enable notifications in your browser settings",
@@ -152,7 +199,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NotificationContext.Provider value={{ requestPermissions, scheduleNotification, cancelNotification }}>
+    <NotificationContext.Provider value={{
+      requestPermissions,
+      scheduleNotification,
+      cancelNotification,
+      testNotificationPermission
+    }}>
       {children}
     </NotificationContext.Provider>
   )

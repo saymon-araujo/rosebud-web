@@ -5,6 +5,7 @@ import type React from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Sparkles } from "lucide-react"
 
 type UserBubbleProps = {
   message: string
@@ -13,9 +14,9 @@ type UserBubbleProps = {
 
 export function UserBubble({ message, timestamp }: UserBubbleProps) {
   return (
-    <div className="flex justify-end mb-2">
-      <div className="user-bubble">
-        <p className="text-black">{message}</p>
+    <div className="flex justify-end mb-4">
+      <div className="user-bubble shadow-sm">
+        <p className="text-gray-800">{message}</p>
         {timestamp && <p className="text-[11px] text-gray-500 text-right mt-1">{timestamp}</p>}
       </div>
     </div>
@@ -56,12 +57,14 @@ export function AIBubble({ message, timestamp, type }: AIBubbleProps) {
   }
 
   return (
-    <div className="flex mb-2">
+    <div className="flex mb-4">
       <Avatar className="h-8 w-8 mr-2">
-        <AvatarImage src="/ai-avatar.png" alt="Journal AI" />
-        <AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback>
+        <AvatarImage src="/abstract-ai-network.png" alt="Journal AI" />
+        <AvatarFallback className="bg-primary text-primary-foreground">
+          <Sparkles className="h-4 w-4" />
+        </AvatarFallback>
       </Avatar>
-      <div className="ai-bubble">
+      <div className="ai-bubble shadow-sm">
         <div className="flex items-center mb-1">
           <span className="mr-1">{getIcon()}</span>
           <span className="text-primary font-semibold text-sm">Journal AI</span>
@@ -77,15 +80,20 @@ type QuickReplyButtonProps = {
   text: string
   onPress: () => void
   primary?: boolean
+  disabled?: boolean
 }
 
-export function QuickReplyButton({ text, onPress, primary = true }: QuickReplyButtonProps) {
+export function QuickReplyButton({ text, onPress, primary = true, disabled = false }: QuickReplyButtonProps) {
   return (
     <Button
       variant={primary ? "default" : "outline"}
       size="sm"
-      className={cn("rounded-full px-4 py-2 m-1", primary ? "" : "border-primary text-primary")}
+      className={cn(
+        "rounded-full px-4 py-2 m-1 shadow-sm hover:shadow transition-all",
+        primary ? "" : "border-primary text-primary hover:bg-primary/10",
+      )}
       onClick={onPress}
+      disabled={disabled}
     >
       {text}
     </Button>
@@ -97,7 +105,7 @@ type QuickReplyContainerProps = {
 }
 
 export function QuickReplyContainer({ children }: QuickReplyContainerProps) {
-  return <div className="flex flex-wrap justify-center my-3 px-3">{children}</div>
+  return <div className="flex flex-wrap justify-center my-4 px-3 animate-fade-in">{children}</div>
 }
 
 type SystemMessageProps = {
@@ -106,8 +114,8 @@ type SystemMessageProps = {
 
 export function SystemMessage({ message }: SystemMessageProps) {
   return (
-    <div className="flex justify-center my-2">
-      <span className="system-message">{message}</span>
+    <div className="flex justify-center my-3">
+      <span className="system-message shadow-sm">{message}</span>
     </div>
   )
 }

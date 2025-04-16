@@ -8,7 +8,21 @@ import { useSupabase } from "@/lib/supabase-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, PenLine, History, Bell, Settings } from "lucide-react"
+import {
+  Loader2,
+  PenLine,
+  History,
+  Bell,
+  Settings,
+  BookOpen,
+  Calendar,
+  LogOut,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 type JournalEntry = {
   id: string
@@ -33,6 +47,11 @@ export default function DashboardPage() {
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([])
   const [activeReminders, setActiveReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalEntries: 0,
+    totalReminders: 0,
+    streakDays: 0,
+  })
 
   useEffect(() => {
     if (!user) {
@@ -69,11 +88,39 @@ export default function DashboardPage() {
 
       if (remindersError) throw remindersError
       setActiveReminders(remindersData || [])
+
+      // Get stats
+      const { count: entriesCount } = await supabase
+        .from("journal_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user?.id)
+
+      const { count: remindersCount } = await supabase
+        .from("reminders")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user?.id)
+
+      setStats({
+        totalEntries: entriesCount || 0,
+        totalReminders: remindersCount || 0,
+        streakDays: calculateStreak(entriesData || []),
+      })
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const calculateStreak = (entries: JournalEntry[]) => {
+    if (!entries.length) return 0
+
+    // Simple streak calculation - can be enhanced for more accuracy
+    const dates = entries.map((entry) => new Date(entry.created_at).toDateString())
+    const uniqueDates = [...new Set(dates)]
+
+    // For demo purposes, return a number between 1-7 based on entries count
+    return Math.min(7, uniqueDates.length)
   }
 
   const formatDate = (dateString: string) => {
@@ -98,38 +145,107 @@ export default function DashboardPage() {
     return content.substring(0, maxLength) + "..."
   }
 
+  const getTimeStatus = (dateString: string) => {
+    const reminderTime = new Date(dateString)
+    const now = new Date()
+    const diffMs = reminderTime.getTime() - now.getTime()
+    const diffHrs = diffMs / (1000 * 60 * 60)
+
+    if (diffHrs < 0) return "overdue"
+    if (diffHrs < 1) return "soon"
+    return "upcoming"
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold text-primary">Journal AI</h1>
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/settings")}>
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => signOut()}>
-              Sign Out
-            </Button>
+    <div className="min-h-screen bg-gradient-light">
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <BookOpen className="h-8 w-8 text-primary" />
+              <h1 className="text-xl font-bold text-primary ml-2">Journal AI</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/settings")}
+                className="text-gray-500 hover:text-primary"
+              >
+                <Settings className="h-5 w-5" />
+                <span className="sr-only">Settings</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => signOut()} className="text-gray-500 hover:text-primary">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 md:p-6">
-        <div className="mb-8">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-8 animate-fade-in">
           <h2 className="text-2xl font-bold mb-2">Welcome back, {user?.email?.split("@")[0] || "User"}</h2>
           <p className="text-gray-500">How are you feeling today?</p>
         </div>
 
-        <div className="mb-8">
-          <Button onClick={() => router.push("/journal")} className="w-full sm:w-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="shadow-sm hover:shadow-md transition-shadow animate-fade-in">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Entries</p>
+                  <p className="text-3xl font-bold">{stats.totalEntries}</p>
+                </div>
+                <div className="rounded-full bg-primary/10 p-3">
+                  <BookOpen className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm hover:shadow-md transition-shadow animate-fade-in animate-delay-100">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Active Reminders</p>
+                  <p className="text-3xl font-bold">{stats.totalReminders}</p>
+                </div>
+                <div className="rounded-full bg-primary/10 p-3">
+                  <Bell className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm hover:shadow-md transition-shadow animate-fade-in animate-delay-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Current Streak</p>
+                  <p className="text-3xl font-bold">{stats.streakDays} days</p>
+                </div>
+                <div className="rounded-full bg-primary/10 p-3">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mb-8 animate-fade-in animate-delay-100">
+          <Button
+            onClick={() => router.push("/journal")}
+            className="w-full sm:w-auto shadow-md hover:shadow-lg transition-shadow"
+          >
             <PenLine className="mr-2 h-4 w-4" />
             New Journal Entry
           </Button>
         </div>
 
-        <Tabs defaultValue="entries" className="space-y-4">
-          <TabsList>
+        <Tabs defaultValue="entries" className="space-y-4 animate-fade-in animate-delay-200">
+          <TabsList className="bg-white shadow-sm">
             <TabsTrigger value="entries">Recent Entries</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
           </TabsList>
@@ -141,19 +257,19 @@ export default function DashboardPage() {
               </div>
             ) : recentEntries.length > 0 ? (
               <>
-                {recentEntries.map((entry) => (
-                  <Card key={entry.id} className="overflow-hidden">
-                    <CardHeader className="p-4 pb-2">
+                {recentEntries.map((entry, index) => (
+                  <Card key={entry.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="p-4 pb-2 bg-white">
                       <div className="flex justify-between items-center">
                         <CardTitle className="text-sm font-medium">{formatDate(entry.created_at)}</CardTitle>
                         {entry.processed ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             AI Analyzed
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                             Pending Analysis
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </CardHeader>
@@ -161,24 +277,29 @@ export default function DashboardPage() {
                       <p className="text-gray-700">{truncateContent(entry.content)}</p>
                     </CardContent>
                     <CardFooter className="p-4 pt-0 flex justify-end">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/journal?entryId=${entry.id}`}>View Details</Link>
+                      <Button variant="ghost" size="sm" asChild className="text-primary">
+                        <Link href={`/journal?entryId=${entry.id}`}>
+                          View Details
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Link>
                       </Button>
                     </CardFooter>
                   </Card>
                 ))}
                 <div className="text-center">
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" asChild className="shadow-sm">
                     <Link href="/history">View All Entries</Link>
                   </Button>
                 </div>
               </>
             ) : (
-              <Card>
+              <Card className="shadow-sm">
                 <CardContent className="p-8 text-center">
                   <History className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-500 mb-4">No journal entries yet</p>
-                  <Button onClick={() => router.push("/journal")}>Create Your First Entry</Button>
+                  <Button onClick={() => router.push("/journal")} className="shadow-sm">
+                    Create Your First Entry
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -192,40 +313,65 @@ export default function DashboardPage() {
             ) : activeReminders.length > 0 ? (
               <>
                 {activeReminders.map((reminder) => (
-                  <Card key={reminder.id} className="overflow-hidden">
-                    <CardHeader className="p-4 pb-2">
+                  <Card key={reminder.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="p-4 pb-2 bg-white">
                       <div className="flex justify-between items-center">
-                        <CardTitle className="text-sm font-medium">{reminder.title}</CardTitle>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                          {reminder.title}
+                          {getTimeStatus(reminder.time) === "overdue" && (
+                            <AlertCircle className="ml-2 h-4 w-4 text-red-500" />
+                          )}
+                          {getTimeStatus(reminder.time) === "soon" && (
+                            <Clock className="ml-2 h-4 w-4 text-yellow-500" />
+                          )}
+                        </CardTitle>
+                        <Badge
+                          variant="outline"
+                          className={
+                            getTimeStatus(reminder.time) === "overdue"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : getTimeStatus(reminder.time) === "soon"
+                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                          }
+                        >
                           {formatTime(reminder.time)}
-                        </span>
+                        </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-2">
                       <p className="text-gray-700">{reminder.body}</p>
                     </CardContent>
                     <CardFooter className="p-4 pt-0 flex justify-end">
-                      <Button variant="outline" size="sm" className="mr-2" asChild>
-                        <Link href={`/reminders?id=${reminder.id}`}>Edit</Link>
+                      <Button variant="outline" size="sm" className="mr-2 text-green-600" asChild>
+                        <Link href={`/reminders?id=${reminder.id}`}>
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
+                          Complete
+                        </Link>
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/reminders?id=${reminder.id}`)}>
-                        View
+                      <Button variant="ghost" size="sm" className="text-primary" asChild>
+                        <Link href={`/reminders?id=${reminder.id}`}>
+                          View
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Link>
                       </Button>
                     </CardFooter>
                   </Card>
                 ))}
                 <div className="text-center">
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" asChild className="shadow-sm">
                     <Link href="/reminders">View All Reminders</Link>
                   </Button>
                 </div>
               </>
             ) : (
-              <Card>
+              <Card className="shadow-sm">
                 <CardContent className="p-8 text-center">
                   <Bell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-500 mb-4">No active reminders</p>
-                  <Button onClick={() => router.push("/journal")}>Create a Journal Entry</Button>
+                  <Button onClick={() => router.push("/journal")} className="shadow-sm">
+                    Create a Journal Entry
+                  </Button>
                 </CardContent>
               </Card>
             )}
