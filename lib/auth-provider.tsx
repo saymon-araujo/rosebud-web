@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation"
 import { useSupabase } from "./supabase-provider"
 import type { User } from "@supabase/supabase-js"
 
+// Auto-login configuration
+const AUTO_LOGIN = true
+const AUTO_LOGIN_EMAIL = "saymonbrandon@gmail.com"
+const AUTO_LOGIN_PASSWORD = "@mico123"
+
 type AuthContextType = {
   user: User | null
   loading: boolean
@@ -30,7 +35,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        setUser(session?.user || null)
+
+        if (session?.user) {
+          setUser(session.user)
+        } else if (AUTO_LOGIN) {
+          // Auto-login if enabled and no session exists
+          try {
+            console.log("Attempting auto-login...")
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email: AUTO_LOGIN_EMAIL,
+              password: AUTO_LOGIN_PASSWORD
+            })
+
+            if (error) {
+              console.error("Auto-login failed:", error.message)
+            } else {
+              console.log("Auto-login successful")
+              setUser(data.user)
+            }
+          } catch (autoLoginError) {
+            console.error("Auto-login error:", autoLoginError)
+          }
+        } else {
+          setUser(null)
+        }
       } catch (error) {
         console.error("Error checking auth:", error)
       } finally {
@@ -48,7 +76,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_IN" && session) {
         router.push("/dashboard")
       } else if (event === "SIGNED_OUT") {
-        router.push("/login")
+        if (AUTO_LOGIN) {
+          // If auto-login is enabled, attempt to sign in again
+          try {
+            console.log("Auto-login after sign out...")
+            await supabase.auth.signInWithPassword({
+              email: AUTO_LOGIN_EMAIL,
+              password: AUTO_LOGIN_PASSWORD
+            })
+          } catch (error) {
+            console.error("Auto-login after signout failed:", error)
+            router.push("/login")
+          }
+        } else {
+          router.push("/login")
+        }
       }
     })
 

@@ -1,9 +1,7 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-provider"
 import { useSupabase } from "@/lib/supabase-provider"
 import { useNotification } from "@/lib/notification-provider"
@@ -46,7 +44,7 @@ type Message = {
   suggestionType?: string
 }
 
-export default function JournalPage({ searchParams }: { searchParams: { entryId?: string } }) {
+export default function JournalPage() {
   const { user } = useAuth()
   const { supabase } = useSupabase()
   const { requestPermissions, scheduleNotification } = useNotification()
@@ -61,7 +59,8 @@ export default function JournalPage({ searchParams }: { searchParams: { entryId?
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { toast } = useToast()
-  const { entryId } = searchParams
+  const searchParams = useSearchParams()
+  const entryId = searchParams.get("entryId")
 
   // Format current time for message timestamps
   const getCurrentTime = () => {

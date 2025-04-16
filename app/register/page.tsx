@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-provider"
@@ -13,14 +13,24 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 
+// This should match the value in auth-provider.tsx
+const AUTO_LOGIN = true
+
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const { signUp } = useAuth()
+  const { signUp, user } = useAuth()
   const router = useRouter()
+
+  // Check for auto-login on component mount
+  useEffect(() => {
+    if (AUTO_LOGIN || user) {
+      router.push("/dashboard")
+    }
+  }, [user, router])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +56,18 @@ export default function RegisterPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // If auto-login is enabled, show loading state
+  if (AUTO_LOGIN) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+          <p className="mt-2 text-sm text-gray-500">Auto-login enabled, redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
